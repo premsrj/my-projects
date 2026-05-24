@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Investment Based Calculation</title>
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <script src="commonJs.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Navbar</a>
+
+    <div class="navbar-expand" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+                <a class="nav-link" href="index.html">Home</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="swp.html">SWP</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="inflation.html">Inflation</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Investment Based <span class="sr-only">(current)</span></a>
+            </li>
+        </ul>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <p class="m-2 text-center">Calculating final corpus from different set of investments</p>
+        <div class="col-sm-6 col-sm-offset-3 py-2">
+            <div class="card m-1">
+                <div class="card-body">
+                    <h6 class="card-title">NPS</h6>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="npsBalance" value="1056564">
+                        <label for="npsBalance" class="form-label">NPS Balance</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="npsReturn" value="8">
+                        <label for="npsReturn">NPS Return %</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="npsInvestment" value="4200">
+                        <label for="npsInvestment">NPS Monthly Investment</label>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-sm-offset-3 py-2">
+            <div class="card m-1">
+                <div class="card-body">
+                    <h6 class="card-title">Debt Investments</h6>
+                    <p class="fw-lighter card-text">Remember EPF, PPF, RD, FD, Emergency, Extra Savings</p>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="debtBalance" value="2793596">
+                        <label for="debtBalance">Balance in debt instruments</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="debtReturn" value="5">
+                        <label for="debtReturn">Returns from debt</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="debtInvestment" value="29422">
+                        <label for="debtInvestment">Debt Monthly Investment</label>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-sm-offset-3 py-2">
+            <div class="card m-1">
+                <div class="card-body">
+                    <h6 class="card-title">Mutual Funds</h6>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="mfBalance" value="5012333">
+                        <label for="mfBalance" class="form-label">Mutual Funds Balance</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="mfReturn" value="10">
+                        <label for="mfReturn">Mutual Funds Return %</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="mfInvestment" value="72000">
+                        <label for="mfInvestment">Mutual Funds Monthly Investment</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="mfIncrement" value="6000">
+                        <label for="mfIncrement">Mutual Funds Yearly Increment</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="mfIncrementAfterLoan" value="20000">
+                        <label for="mfIncrementAfterLoan">Mutual Funds Increment After Loan</label>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-sm-offset-3 py-2">
+            <div class="card m-1">
+                <div class="card-body">
+                    <h6 class="card-title">General Info</h6>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="currentAge" value="35">
+                        <label for="currentAge" class="form-label">Current Age</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="retirementAge" value="52">
+                        <label for="retirementAge">Retirement Age</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="inflation" value="7">
+                        <label for="inflation">Inflation %</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="loanTerm" value="17">
+                        <label for="loanTerm">Loan Payment Left in Months</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="annuityRate" value="6.4">
+                        <label for="annuityRate">Annuity Return %</label>
+                    </form>
+                    <form class="form-floating py-1">
+                        <input type="number" class="form-control" id="swpRate" value="3">
+                        <label for="swpRate">SWP Rate %</label>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary rounded-pill py-1 m-sm-1" onclick="onCalculateClick()">Calculate!</button>
+    </div>
+    <div class="col-sm-6 col-sm-offset-3 py-2">
+        <p class="text-justify">The result:</p>
+        <p class="text-justify" id="resultText"></p>
+    </div>
+</div>
+</body>
+</html>
+
+<script>
+    function onCalculateClick() {
+        const resultText = document.getElementById("resultText");
+        let innerHtml = ""
+
+        let month = 0;
+        let index = 0;
+        let amountNeeded = 0.0;
+        let npsBalance = parseFloat(document.getElementById("npsBalance").value)
+        let npsReturn = parseFloat(document.getElementById("npsReturn").value)/100
+        let npsInvestment = parseFloat(document.getElementById("npsInvestment").value)
+
+        let debtBalance = parseFloat(document.getElementById("debtBalance").value)
+        let debtReturn = parseFloat(document.getElementById("debtReturn").value)/100
+        let debtInvestment = parseFloat(document.getElementById("debtInvestment").value)
+
+        let mfBalance = parseFloat(document.getElementById("mfBalance").value)
+        let mfReturn = parseFloat(document.getElementById("mfReturn").value)/100
+        let mfInvestment = parseFloat(document.getElementById("mfInvestment").value)
+        let mfIncrement = parseFloat(document.getElementById("mfIncrement").value)
+        let mfIncrementAfterLoan = parseFloat(document.getElementById("mfIncrementAfterLoan").value)
+
+        let currentAge = parseFloat(document.getElementById("currentAge").value)
+        let retirementAge = parseFloat(document.getElementById("retirementAge").value)
+        let inflation = parseFloat(document.getElementById("inflation").value)/100
+        let loanTerm = parseFloat(document.getElementById("loanTerm").value)
+        let annuityRate = parseFloat(document.getElementById("annuityRate").value)/100
+        let swpRate = parseFloat(document.getElementById("swpRate").value)/100
+
+        let years = retirementAge - currentAge
+        let paymentTerm = years * 12
+        let currentAgeInMonths = currentAge * 12
+
+        for (month = 1; month <= paymentTerm; month++) {
+            npsBalance += npsInvestment;
+            debtBalance += debtInvestment;
+            mfBalance += mfInvestment;
+
+            if ((currentAgeInMonths + month) % 12 === 0) {
+                let inflationAdjusted = (npsBalance + mfBalance + debtBalance) / Math.pow((1 + inflation), month / 12);
+                innerHtml += `Value at age ${((currentAgeInMonths + month) / 12).toFixed(1)} is ${formatForIndia(npsBalance + mfBalance + debtBalance)} inflation adjusted: ${formatForIndia(inflationAdjusted)}`
+                innerHtml += "</br>"
+            }
+
+            if ((currentAgeInMonths + month) % 12 === 4) {
+                npsBalance += npsBalance * npsReturn;
+                mfBalance += mfBalance * mfReturn;
+                mfInvestment += mfIncrement;
+            }
+
+            if (month % 3 === 0) {
+                debtBalance += debtBalance * (debtReturn / 4.0);
+            }
+
+            if (month === loanTerm) {
+                mfInvestment += mfIncrementAfterLoan;
+            }
+        }
+
+        monthlyAnnuity = ((npsBalance + debtBalance) * annuityRate) / 12;
+        swp = (mfBalance * swpRate / 12);
+        monthlyPension = monthlyAnnuity + swp;
+        currentEquivalent = monthlyPension / Math.pow((1 + inflation), years);
+        totalInflationAdjusted = (npsBalance + debtBalance + mfBalance) / Math.pow((1 + inflation), month / 12);
+
+        innerHtml += "</br></br>" +  `NPS Corpus  ${formatForIndia(npsBalance)}` + "</br>";
+        innerHtml += "RD Corpus " + formatForIndia(debtBalance)  + "</br>";
+        innerHtml += "MF Corpus " + formatForIndia(mfBalance) + "</br>";
+        innerHtml += "Total Corpus " + formatForIndia(npsBalance + debtBalance + mfBalance) + "</br>";
+        innerHtml += "Total Inflation " + formatForIndia(totalInflationAdjusted) + "</br>";
+        innerHtml += "Annuity " + formatForIndia(monthlyAnnuity) + "</br>";
+        innerHtml += "SWP " + formatForIndia(swp) + "</br>";
+        innerHtml += "Pension " + formatForIndia(monthlyPension) + "</br>";
+        innerHtml += "Inflation Adjusted " + formatForIndia(currentEquivalent) + "</br>";
+        resultText.innerHTML = innerHtml
+
+    }
+</script>

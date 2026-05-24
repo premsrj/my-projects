@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SWP</title>
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <script src="commonJs.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Navbar</a>
+
+    <div class="navbar-expand" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+                <a class="nav-link" href="index.html">Home</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">SWP <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="inflation.html">Inflation</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="investmentBased.html">Investment Based</a>
+            </li>
+        </ul>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-6 col-sm-offset-3 py-5">
+            <p>Let's see how long your savings will last.</p>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="corpus" value="17000000">
+                <label for="corpus">Corpus</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="swp" value="35000">
+                <label for="swp">SWP</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="swpYears" value="7">
+                <label for="swpYears">SWP Years</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="debtReturn" value="7">
+                <label for="debtReturn">Returns from debt</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="equityReturn" value="10">
+                <label for="equityReturn">Returns from equity</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="inflation" value="7">
+                <label for="inflation">Expected Inflation</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="retirementAge" value="51">
+                <label for="retirementAge">Age at retirement</label>
+            </form>
+            <form class="form-floating py-1">
+                <input type="number" class="form-control" id="targetAge" value="100">
+                <label for="targetAge">Age until which corpus should last</label>
+            </form>
+            <button class="btn btn-primary rounded-pill py-1 m-sm-1" onclick="onCalculateClick()">Calculate!</button>
+        </div>
+        <div class="col-sm-6 col-sm-offset-3 py-5">
+            <p class="text-justify">The result:</p>
+            <p class="text-justify" id="resultText"></p>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script>
+    function onCalculateClick() {
+        const resultText = document.getElementById("resultText");
+        let innerHtml = ""
+        let month = 0;
+        let index = 0;
+        let amountNeeded = 0.0;
+        let corpus = parseFloat(document.getElementById("corpus").value)
+        let swp = parseFloat(document.getElementById("swp").value)
+        let swpYears = parseFloat(document.getElementById("swpYears").value)
+        let debtReturn = parseFloat(document.getElementById("debtReturn").value)/100
+        let equityReturn = parseFloat(document.getElementById("equityReturn").value)/100
+        let inflation = parseFloat(document.getElementById("inflation").value)/100
+        let retirementAge = parseFloat(document.getElementById("retirementAge").value)
+        let targetAge = parseFloat(document.getElementById("targetAge").value)
+
+        while (index < swpYears) {
+            amountNeeded += (swp * 12) * Math.pow((1 + inflation), index);
+            index++;
+        }
+
+        let debtPortion = amountNeeded;
+
+        if (debtPortion > corpus) {
+            debtPortion = corpus;
+            corpus = 0;
+        } else {
+            corpus -= debtPortion;
+        }
+
+        innerHtml += "Take " + formatForIndia(amountNeeded) + " from " +
+            formatForIndia(corpus + debtPortion) + " now you have " + formatForIndia(corpus + debtPortion - amountNeeded) + " left.";
+        innerHtml += "</br>"
+
+        while (month < (targetAge - retirementAge) * 12) {
+            if (debtPortion + corpus <= 0) {
+                break;
+            }
+
+            debtPortion -= swp;
+            month++;
+
+            console.log("Month(" + month +") debtPortion = " + formatForIndia(debtPortion))
+            if (month % 12 === 0) {
+                console.log("Interest received")
+                debtPortion += debtPortion * debtReturn;
+                corpus += corpus * equityReturn;
+                console.log("Year " + month/12 + " debt value at " + formatForIndia(debtPortion) + " equity value at " + formatForIndia(corpus))
+            }
+
+            if (month % 12 === 0) {
+                swp = (((1 + inflation) ** 1) * (swp * 12)) / 12;
+                innerHtml +=
+                    "From age " +
+                    ((retirementAge + month / 12).toFixed(1)) +
+                    " onwards your SWP will be " +
+                    formatForIndia(swp);
+                innerHtml += "</br>"
+            }
+
+            if (month % (swpYears * 12) === 0) {
+                innerHtml += "Debt portion is now " + formatForIndia(debtPortion) + " and equity portion is now " + formatForIndia(corpus)
+                innerHtml += "</br>"
+
+                index = 0;
+                amountNeeded = 0.0;
+
+                while (index < swpYears) {
+                    amountNeeded += (swp * 12) * Math.pow((1 + inflation), index);
+                    index++;
+                }
+
+                if (amountNeeded > corpus + debtPortion) {
+                    amountNeeded = corpus + debtPortion;
+                }
+
+                innerHtml += "Take " + formatForIndia(amountNeeded) + " from " +
+                    formatForIndia(corpus + debtPortion) + " now you have " + formatForIndia(corpus + debtPortion - amountNeeded) + " left.";
+                innerHtml += "</br>"
+
+                let debtPortionDifference = amountNeeded - debtPortion;
+
+                if (debtPortionDifference > corpus) {
+                    debtPortionDifference = corpus;
+                    debtPortion += debtPortionDifference;
+                    corpus = 0;
+                } else {
+                    corpus -= debtPortionDifference;
+                    debtPortion += debtPortionDifference;
+                }
+            }
+        }
+
+        corpus += debtPortion;
+
+        if (corpus > 0) {
+            let years = Math.floor(month / 12);
+            let months = month % 12;
+            innerHtml += "In " + years + " years & " + months + " months your asset will be " + formatForIndia(corpus);
+            innerHtml += "</br>"
+            innerHtml += "This is equal to " + formatForIndia(corpus / Math.pow(1 + inflation, years)) + " when you retired.";
+        } else {
+            month--;
+            let years = Math.floor(month / 12);
+            let months = month % 12;
+            innerHtml += "Your asset will run out in " + years + " years & " + months + " months ";
+            innerHtml += "</br>";
+            innerHtml += "Your total age will be " + (years + retirementAge);
+            innerHtml += "</br>"
+        }
+
+        resultText.innerHTML = innerHtml
+    }
+</script>
