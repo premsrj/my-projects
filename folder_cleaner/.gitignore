@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+/build/
+app/build/
+
+# Local SDK path
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Build outputs and packaging
+*.apk
+*.ap_
+*.aab
+
+# Native build intermediates
+.cxx/
+.externalNativeBuild/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Kotlin/Java temp files
+*.log
+*.tmp
