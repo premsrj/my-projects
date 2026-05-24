@@ -17,4 +17,5 @@ When creating or modifying Android projects under this folder, configure both Ja
 - Then run `assembleDebug` before making wider code changes.
 
 ## Implementation Process
+- Add a proper .gitignore file to every project
 - After every change to the project, build and run the project in the connected android device
