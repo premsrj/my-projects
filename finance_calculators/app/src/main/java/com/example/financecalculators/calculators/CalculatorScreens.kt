@@ -3,6 +3,7 @@ package com.example.financecalculators.calculators
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -31,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
@@ -490,6 +494,25 @@ private fun InvestmentProgressionChart(points: List<YearlyCorpusPoint>) {
     val nominalColor = MaterialTheme.colorScheme.primary
     val inflationAdjustedColor = MaterialTheme.colorScheme.tertiary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val markerColor = MaterialTheme.colorScheme.onSurface
+    val minAge = points.first().age
+    val maxAge = points.last().age
+    val ageRange = (maxAge - minAge).takeIf { it > 0.0 } ?: 1.0
+    val maxCorpus = max(
+        points.maxOf { it.totalCorpus },
+        points.maxOf { it.inflationAdjustedCorpus }
+    ).coerceAtLeast(1.0)
+    var selectedIndex by remember(points) { mutableStateOf(-1) }
+
+    fun xRatioForAge(age: Double): Float {
+        return ((age - minAge) / ageRange).toFloat()
+    }
+
+    fun yRatioForCorpus(value: Double): Float {
+        return (value / maxCorpus).toFloat()
+    }
+
+    val yAxisSteps = listOf(1.0, 0.75, 0.5, 0.25, 0.0)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -505,70 +528,172 @@ private fun InvestmentProgressionChart(points: List<YearlyCorpusPoint>) {
                 style = MaterialTheme.typography.bodySmall
             )
 
-            Canvas(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(220.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val minAge = points.first().age
-                val maxAge = points.last().age
-                val ageRange = (maxAge - minAge).takeIf { it > 0.0 } ?: 1.0
-                val maxCorpus = max(
-                    points.maxOf { it.totalCorpus },
-                    points.maxOf { it.inflationAdjustedCorpus }
-                ).coerceAtLeast(1.0)
-
-                for (index in 0..4) {
-                    val y = size.height * (index / 4f)
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = 1f
-                    )
-                }
-
-                fun xPosition(age: Double): Float {
-                    return ((age - minAge) / ageRange).toFloat() * size.width
-                }
-
-                fun yPosition(value: Double): Float {
-                    val ratio = (value / maxCorpus).toFloat()
-                    return size.height - (ratio * size.height)
-                }
-
-                val nominalPath = Path()
-                val inflationAdjustedPath = Path()
-
-                points.forEachIndexed { index, point ->
-                    val x = xPosition(point.age)
-                    val yNominal = yPosition(point.totalCorpus)
-                    val yAdjusted = yPosition(point.inflationAdjustedCorpus)
-
-                    if (index == 0) {
-                        nominalPath.moveTo(x, yNominal)
-                        inflationAdjustedPath.moveTo(x, yAdjusted)
-                    } else {
-                        nominalPath.lineTo(x, yNominal)
-                        inflationAdjustedPath.lineTo(x, yAdjusted)
+                Column(
+                    modifier = Modifier
+                        .width(96.dp)
+                        .height(220.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    yAxisSteps.forEach { step ->
+                        Text(
+                            text = "INR ${FinanceCalculatorEngine.formatForIndia(maxCorpus * step)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
-                drawPath(
-                    path = nominalPath,
-                    color = nominalColor,
-                    style = Stroke(width = 6f, cap = StrokeCap.Round)
-                )
-                drawPath(
-                    path = inflationAdjustedPath,
-                    color = inflationAdjustedColor,
-                    style = Stroke(width = 6f, cap = StrokeCap.Round)
-                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(220.dp)
+                        .pointerInput(points) {
+                            detectTapGestures { tapOffset ->
+                                var nearestIndex = 0
+                                var nearestDistance = Float.MAX_VALUE
+                                points.forEachIndexed { index, point ->
+                                    val pointX = xRatioForAge(point.age) * size.width
+                                    val distance = kotlin.math.abs(pointX - tapOffset.x)
+                                    if (distance < nearestDistance) {
+                                        nearestDistance = distance
+                                        nearestIndex = index
+                                    }
+                                }
+                                selectedIndex = nearestIndex
+                            }
+                        }
+                ) {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                    ) {
+                        for (index in 0..4) {
+                            val y = size.height * (index / 4f)
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = 1f
+                            )
+                        }
+
+                        fun xPosition(age: Double): Float {
+                            return xRatioForAge(age) * size.width
+                        }
+
+                        fun yPosition(value: Double): Float {
+                            val ratio = yRatioForCorpus(value)
+                            return size.height - (ratio * size.height)
+                        }
+
+                        val nominalPath = Path()
+                        val inflationAdjustedPath = Path()
+
+                        points.forEachIndexed { index, point ->
+                            val x = xPosition(point.age)
+                            val yNominal = yPosition(point.totalCorpus)
+                            val yAdjusted = yPosition(point.inflationAdjustedCorpus)
+
+                            if (index == 0) {
+                                nominalPath.moveTo(x, yNominal)
+                                inflationAdjustedPath.moveTo(x, yAdjusted)
+                            } else {
+                                nominalPath.lineTo(x, yNominal)
+                                inflationAdjustedPath.lineTo(x, yAdjusted)
+                            }
+
+                            drawCircle(
+                                color = nominalColor,
+                                radius = 4f,
+                                center = Offset(x, yNominal)
+                            )
+                            drawCircle(
+                                color = inflationAdjustedColor,
+                                radius = 4f,
+                                center = Offset(x, yAdjusted)
+                            )
+                        }
+
+                        drawPath(
+                            path = nominalPath,
+                            color = nominalColor,
+                            style = Stroke(width = 4f, cap = StrokeCap.Round)
+                        )
+                        drawPath(
+                            path = inflationAdjustedPath,
+                            color = inflationAdjustedColor,
+                            style = Stroke(width = 4f, cap = StrokeCap.Round)
+                        )
+
+                        if (selectedIndex in points.indices) {
+                            val selected = points[selectedIndex]
+                            val x = xPosition(selected.age)
+                            val yNominal = yPosition(selected.totalCorpus)
+                            val yAdjusted = yPosition(selected.inflationAdjustedCorpus)
+
+                            drawLine(
+                                color = markerColor,
+                                start = Offset(x, 0f),
+                                end = Offset(x, size.height),
+                                strokeWidth = 2f
+                            )
+
+                            drawCircle(
+                                color = nominalColor,
+                                radius = 7f,
+                                center = Offset(x, yNominal)
+                            )
+                            drawCircle(
+                                color = inflationAdjustedColor,
+                                radius = 7f,
+                                center = Offset(x, yAdjusted)
+                            )
+                        }
+                    }
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 ChartLegendItem(color = nominalColor, label = "Total corpus")
                 ChartLegendItem(color = inflationAdjustedColor, label = "Inflation-adjusted")
+            }
+
+            if (selectedIndex in points.indices) {
+                val selected = points[selectedIndex]
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Age ${formatAge(selected.age)}",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            text = "Total corpus: INR ${FinanceCalculatorEngine.formatForIndia(selected.totalCorpus)}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Inflation-adjusted: INR ${FinanceCalculatorEngine.formatForIndia(selected.inflationAdjustedCorpus)}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = "Tap the chart to inspect a specific year.",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Text(
