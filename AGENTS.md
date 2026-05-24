@@ -15,3 +15,6 @@ When creating or modifying Android projects under this folder, configure both Ja
 ## Quick Validation
 - Run `./gradlew tasks` (or `gradlew.bat tasks` on Windows) to confirm toolchain setup.
 - Then run `assembleDebug` before making wider code changes.
+
+## Implementation Process
+- After every change to the project, build and run the project in the connected android device
