@@ -2,6 +2,7 @@ package dev.prem.budgetwidget.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -16,61 +17,66 @@ import dev.prem.budgetwidget.ui.main.MainScreen
 import dev.prem.budgetwidget.ui.main.MainViewModel
 
 @Composable
-fun BudgetNavGraph(appContainer: AppContainer) {
-    val navController = rememberNavController()
+fun BudgetNavGraph(
+    appContainer: AppContainer,
+    startDestination: String = Destinations.HOME_ROUTE
+) {
+    key(startDestination) {
+        val navController = rememberNavController()
 
-    NavHost(
-        navController = navController,
-        startDestination = Destinations.HOME_ROUTE
-    ) {
-        composable(route = Destinations.HOME_ROUTE) {
-            val viewModel: MainViewModel = viewModel(
-                factory = MainViewModel.factory(
-                    repository = appContainer.expenseRepository,
-                    budgetPreferences = appContainer.budgetPreferences
+        NavHost(
+            navController = navController,
+            startDestination = startDestination
+        ) {
+            composable(route = Destinations.HOME_ROUTE) {
+                val viewModel: MainViewModel = viewModel(
+                    factory = MainViewModel.factory(
+                        repository = appContainer.expenseRepository,
+                        budgetPreferences = appContainer.budgetPreferences
+                    )
                 )
-            )
-            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            MainScreen(
-                uiState = uiState,
-                onSetMonthlyLimit = viewModel::saveMonthlyLimit,
-                onExpenseClick = { id ->
-                    navController.navigate(Destinations.expenseRoute(id))
-                },
-                onAddExpenseClick = {
-                    navController.navigate(Destinations.expenseRoute(null))
-                }
-            )
-        }
+                MainScreen(
+                    uiState = uiState,
+                    onSetMonthlyLimit = viewModel::saveMonthlyLimit,
+                    onExpenseClick = { id ->
+                        navController.navigate(Destinations.expenseRoute(id))
+                    },
+                    onAddExpenseClick = {
+                        navController.navigate(Destinations.expenseRoute(null))
+                    }
+                )
+            }
 
-        composable(
-            route = Destinations.EXPENSE_ROUTE_PATTERN,
-            arguments = listOf(
-                navArgument(Destinations.EXPENSE_ID_ARG) {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ) { backStackEntry ->
-            val viewModel: AddEditExpenseViewModel = viewModel(
-                viewModelStoreOwner = backStackEntry,
-                factory = AddEditExpenseViewModel.factory(appContainer.expenseRepository)
-            )
+            composable(
+                route = Destinations.EXPENSE_ROUTE_PATTERN,
+                arguments = listOf(
+                    navArgument(Destinations.EXPENSE_ID_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val viewModel: AddEditExpenseViewModel = viewModel(
+                    viewModelStoreOwner = backStackEntry,
+                    factory = AddEditExpenseViewModel.factory(appContainer.expenseRepository)
+                )
 
-            AddEditExpenseRoute(
-                viewModel = viewModel,
-                onDone = {
-                    val navigatedBack = navController.popBackStack()
-                    if (!navigatedBack) {
-                        navController.navigate(Destinations.HOME_ROUTE) {
-                            launchSingleTop = true
-                            restoreState = true
+                AddEditExpenseRoute(
+                    viewModel = viewModel,
+                    onDone = {
+                        val navigatedBack = navController.popBackStack()
+                        if (!navigatedBack) {
+                            navController.navigate(Destinations.HOME_ROUTE) {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }

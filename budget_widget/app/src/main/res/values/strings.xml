@@ -3,4 +3,6 @@
     <string name="app_name">Budget Widget</string>
     <string name="widget_daily_budget_name">Daily Budget</string>
     <string name="widget_daily_budget_description">Shows today\'s remaining budget and today\'s limit.</string>
+    <string name="shortcut_add_expense_short">Add expense</string>
+    <string name="shortcut_add_expense_long">Quick add expense</string>
 </resources>
