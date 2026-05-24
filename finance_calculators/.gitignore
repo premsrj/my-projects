@@ -1,14 +1,22 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle and build output
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# Local SDK path
 local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Native build intermediates
+.externalNativeBuild/
+.cxx/
+
+# Misc
+captures/
+*.apk
+*.ap_
+*.aab
