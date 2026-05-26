@@ -274,6 +274,18 @@ class CleanupRepository(
         summary
     }
 
+    suspend fun performAutomaticCleanupIfDue(minGapMillis: Long): CleanupSummary? {
+        val safeGapMillis = minGapMillis.coerceAtLeast(0L)
+        val lastAutomaticRunMillis = cleanupRunDao.getLatestExecutionMillis(CleanupTrigger.Automatic.value)
+        val now = System.currentTimeMillis()
+
+        if (lastAutomaticRunMillis != null && now - lastAutomaticRunMillis < safeGapMillis) {
+            return null
+        }
+
+        return performCleanup(CleanupTrigger.Automatic)
+    }
+
     private fun isIgnored(fileName: String, ignoredExtensions: Set<String>): Boolean {
         val lastDotIndex = fileName.lastIndexOf('.')
         if (lastDotIndex < 0 || lastDotIndex == fileName.length - 1) {

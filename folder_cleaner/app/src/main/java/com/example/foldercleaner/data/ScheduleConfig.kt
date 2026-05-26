@@ -8,6 +8,6 @@ data class ScheduleConfig(
     companion object {
         const val DEFAULT_INTERVAL_DAYS = 1
         const val DEFAULT_REQUIRES_CHARGING = true
-        const val DEFAULT_REQUIRES_DEVICE_IDLE = true
+        const val DEFAULT_REQUIRES_DEVICE_IDLE = false
     }
 }

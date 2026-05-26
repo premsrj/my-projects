@@ -15,6 +15,17 @@ interface CleanupRunDao {
 
     @Query(
         """
+        SELECT executedAtMillis
+        FROM cleanup_runs
+        WHERE trigger = :trigger
+        ORDER BY executedAtMillis DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestExecutionMillis(trigger: String): Long?
+
+    @Query(
+        """
         DELETE FROM cleanup_runs
         WHERE id NOT IN (
             SELECT id FROM cleanup_runs

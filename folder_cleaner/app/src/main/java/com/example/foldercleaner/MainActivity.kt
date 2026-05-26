@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         val app = application as FolderCleanerApp
         lifecycleScope.launch {
             val scheduleConfig = app.appContainer.cleanupRepository.getScheduleConfig()
-            WorkScheduler.schedulePeriodicCleanup(this@MainActivity, scheduleConfig)
+            WorkScheduler.scheduleOnAppLaunch(this@MainActivity, scheduleConfig)
         }
     }
 

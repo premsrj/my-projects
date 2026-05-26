@@ -7,6 +7,7 @@ import androidx.work.workDataOf
 import com.example.foldercleaner.FolderCleanerApp
 import com.example.foldercleaner.data.CleanupTrigger
 import com.example.foldercleaner.util.CleanupNotifier
+import java.util.concurrent.TimeUnit
 
 class CleanupWorker(
     appContext: Context,
@@ -16,7 +17,17 @@ class CleanupWorker(
     override suspend fun doWork(): Result {
         return try {
             val app = applicationContext as FolderCleanerApp
-            val summary = app.appContainer.cleanupRepository.performCleanup(CleanupTrigger.Automatic)
+            val minGapMillis = inputData.getLong(KEY_MIN_GAP_MILLIS, DEFAULT_MIN_GAP_MILLIS)
+            val summary = app.appContainer.cleanupRepository.performAutomaticCleanupIfDue(minGapMillis)
+
+            if (summary == null) {
+                return Result.success(
+                    workDataOf(
+                        KEY_SKIPPED_DUE_TO_RECENT_RUN to true
+                    )
+                )
+            }
+
             CleanupNotifier.showCleanupResult(applicationContext, summary, CleanupTrigger.Automatic)
             Result.success(
                 workDataOf(
@@ -38,5 +49,9 @@ class CleanupWorker(
         const val KEY_SKIPPED_COUNT = "skipped_count"
         const val KEY_FAILED_COUNT = "failed_count"
         const val KEY_RECLAIMED_BYTES = "reclaimed_bytes"
+        const val KEY_MIN_GAP_MILLIS = "min_gap_millis"
+        const val KEY_SKIPPED_DUE_TO_RECENT_RUN = "skipped_due_to_recent_run"
+
+        private val DEFAULT_MIN_GAP_MILLIS = TimeUnit.HOURS.toMillis(6)
     }
 }
