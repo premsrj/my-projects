@@ -15,8 +15,8 @@ import com.example.workouttracker.data.WorkoutSetWithExercise
 import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.max
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +76,9 @@ class TrackExerciseViewModel(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    private val _setTrackedSignal = MutableStateFlow(0L)
+    val setTrackedSignal: StateFlow<Long> = _setTrackedSignal.asStateFlow()
 
     init {
         initializeInputsAndLastWorkout()
@@ -168,6 +171,7 @@ class TrackExerciseViewModel(
             _distanceInput.value = ""
             _commentInput.value = ""
             refreshLastWorkout()
+            _setTrackedSignal.value = _setTrackedSignal.value + 1L
         }
     }
 

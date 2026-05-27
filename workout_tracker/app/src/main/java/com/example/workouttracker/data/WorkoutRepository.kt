@@ -12,17 +12,17 @@ class WorkoutRepository(
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) {
     private val defaultCategories = listOf(
-        "back",
-        "biceps",
-        "calves",
-        "cardio",
-        "chest",
-        "core",
-        "forearms",
-        "lats",
-        "legs",
-        "shoulder",
-        "triceps"
+        "Back",
+        "Biceps",
+        "Calves",
+        "Cardio",
+        "Chest",
+        "Core",
+        "Forearms",
+        "Lats",
+        "Legs",
+        "Shoulder",
+        "Triceps"
     )
 
     fun observeCategories(): Flow<List<CategoryEntity>> = dao.observeCategories()

@@ -78,6 +78,9 @@ private val statDateFormatter = DateTimeFormatter.ofPattern("dd MMM")
 fun TrackExerciseRoute(
     exerciseId: Long,
     workoutDate: LocalDate,
+    supersetExerciseIds: List<Long>,
+    supersetIndex: Int,
+    onSupersetAdvance: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: TrackExerciseViewModel = viewModel(
@@ -96,6 +99,7 @@ fun TrackExerciseRoute(
     val commentInput by viewModel.commentInput.collectAsStateWithLifecycle()
     val chartMetric by viewModel.chartMetric.collectAsStateWithLifecycle()
     val personalRecordSetIds by viewModel.personalRecordSetIds.collectAsStateWithLifecycle()
+    val setTrackedSignal by viewModel.setTrackedSignal.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -104,6 +108,12 @@ fun TrackExerciseRoute(
         val content = message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(content)
         viewModel.clearMessage()
+    }
+
+    LaunchedEffect(setTrackedSignal, supersetExerciseIds, supersetIndex) {
+        if (setTrackedSignal > 0L && supersetExerciseIds.size > 1 && supersetIndex >= 0) {
+            onSupersetAdvance()
+        }
     }
 
     TrackExerciseScreen(
@@ -119,6 +129,8 @@ fun TrackExerciseRoute(
         chartMetric = chartMetric,
         personalRecordSetIds = personalRecordSetIds,
         workoutDate = workoutDate,
+        supersetExerciseIds = supersetExerciseIds,
+        supersetIndex = supersetIndex,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onWeightChange = viewModel::onWeightChange,
@@ -151,6 +163,8 @@ fun TrackExerciseScreen(
     chartMetric: ChartMetric,
     personalRecordSetIds: Set<Long>,
     workoutDate: LocalDate,
+    supersetExerciseIds: List<Long>,
+    supersetIndex: Int,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onWeightChange: (String) -> Unit,
@@ -239,6 +253,17 @@ fun TrackExerciseScreen(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (supersetExerciseIds.size > 1 && supersetIndex >= 0) {
+                Text(
+                    text = "Superset: exercise ${supersetIndex + 1} of ${supersetExerciseIds.size}",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             HorizontalPager(
                 state = pagerState,

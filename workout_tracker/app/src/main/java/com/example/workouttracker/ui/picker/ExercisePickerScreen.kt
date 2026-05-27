@@ -13,8 +13,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -33,8 +36,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -44,11 +49,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.workouttracker.data.CategoryEntity
 import com.example.workouttracker.data.ExerciseType
+import kotlinx.coroutines.launch
 
 @Composable
 fun ExercisePickerRoute(
     onBack: () -> Unit,
-    onExerciseSelected: (Long) -> Unit
+    onExerciseSelected: (Long) -> Unit,
+    onSupersetSelected: (List<Long>) -> Unit
 ) {
     val viewModel: ExercisePickerViewModel = viewModel(factory = ExercisePickerViewModel.Factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,6 +74,7 @@ fun ExercisePickerRoute(
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onAddCategory = viewModel::addCategory,
         onExerciseSelected = onExerciseSelected,
+        onSupersetSelected = onSupersetSelected,
         onAddExercise = { name, description, type, categoryId ->
             viewModel.addExercise(
                 name = name,
@@ -88,10 +96,28 @@ fun ExercisePickerScreen(
     onSearchQueryChange: (String) -> Unit,
     onAddCategory: (String) -> Unit,
     onAddExercise: (String, String, ExerciseType, Long) -> Unit,
-    onExerciseSelected: (Long) -> Unit
+    onExerciseSelected: (Long) -> Unit,
+    onSupersetSelected: (List<Long>) -> Unit
 ) {
     var showCategoryDialog by rememberSaveable { mutableStateOf(false) }
     var showExerciseDialog by rememberSaveable { mutableStateOf(false) }
+    var isSupersetMode by rememberSaveable { mutableStateOf(false) }
+    val selectedSupersetOrder = remember { mutableStateListOf<Long>() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val exerciseNameById = remember(uiState.groups) {
+        uiState.groups
+            .flatMap { it.exercises }
+            .associate { exercise -> exercise.id to exercise.name }
+    }
+
+    fun toggleSupersetSelection(exerciseId: Long) {
+        if (selectedSupersetOrder.contains(exerciseId)) {
+            selectedSupersetOrder.remove(exerciseId)
+        } else {
+            selectedSupersetOrder.add(exerciseId)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -131,6 +157,109 @@ fun ExercisePickerScreen(
                 label = { Text(text = "Search exercises") }
             )
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(
+                    onClick = {
+                        isSupersetMode = !isSupersetMode
+                        if (!isSupersetMode) {
+                            selectedSupersetOrder.clear()
+                        }
+                    }
+                ) {
+                    Text(
+                        text = if (isSupersetMode) {
+                            "Superset mode: On"
+                        } else {
+                            "Superset mode: Off"
+                        }
+                    )
+                }
+
+                if (isSupersetMode) {
+                    TextButton(
+                        onClick = {
+                            if (selectedSupersetOrder.size < 2) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Select at least 2 exercises")
+                                }
+                            } else {
+                                val orderedIds = selectedSupersetOrder.toList()
+                                isSupersetMode = false
+                                selectedSupersetOrder.clear()
+                                onSupersetSelected(orderedIds)
+                            }
+                        }
+                    ) {
+                        Text(text = "Start superset")
+                    }
+                }
+            }
+
+            if (isSupersetMode && selectedSupersetOrder.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Superset order",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        selectedSupersetOrder.forEachIndexed { index, exerciseId ->
+                            val exerciseName = exerciseNameById[exerciseId] ?: "Exercise $exerciseId"
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "${index + 1}. $exerciseName")
+                                Row {
+                                    IconButton(
+                                        onClick = {
+                                            if (index > 0) {
+                                                val value = selectedSupersetOrder.removeAt(index)
+                                                selectedSupersetOrder.add(index - 1, value)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowUp,
+                                            contentDescription = "Move up"
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (index < selectedSupersetOrder.lastIndex) {
+                                                val value = selectedSupersetOrder.removeAt(index)
+                                                selectedSupersetOrder.add(index + 1, value)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Move down"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -166,7 +295,13 @@ fun ExercisePickerScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { onExerciseSelected(exercise.id) }
+                                            .clickable {
+                                                if (isSupersetMode) {
+                                                    toggleSupersetSelection(exercise.id)
+                                                } else {
+                                                    onExerciseSelected(exercise.id)
+                                                }
+                                            }
                                             .padding(vertical = 8.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -191,6 +326,14 @@ fun ExercisePickerScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
+                                        }
+
+                                        if (isSupersetMode && selectedSupersetOrder.contains(exercise.id)) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Selected for superset",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
                                         }
                                     }
                                 }
