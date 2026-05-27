@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExerciseEntity::class,
         WorkoutSetEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(WorkoutTypeConverters::class)
@@ -33,6 +33,20 @@ abstract class WorkoutDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE workout_sets ADD COLUMN supersetGroupId TEXT"
+                )
+                db.execSQL(
+                    "ALTER TABLE workout_sets ADD COLUMN supersetRound INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE workout_sets ADD COLUMN supersetPosition INTEGER"
+                )
+            }
+        }
+
         @Volatile
         private var instance: WorkoutDatabase? = null
 
@@ -42,7 +56,7 @@ abstract class WorkoutDatabase : RoomDatabase() {
                     context.applicationContext,
                     WorkoutDatabase::class.java,
                     "workout_tracker.db"
-                ).addMigrations(MIGRATION_1_2).build().also {
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also {
                     instance = it
                 }
             }

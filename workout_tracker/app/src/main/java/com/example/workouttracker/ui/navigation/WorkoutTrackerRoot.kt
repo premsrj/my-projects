@@ -10,6 +10,7 @@ import com.example.workouttracker.ui.picker.ExercisePickerRoute
 import com.example.workouttracker.ui.today.TodayRoute
 import com.example.workouttracker.ui.track.TrackExerciseRoute
 import java.time.LocalDate
+import java.util.UUID
 
 @Composable
 fun WorkoutTrackerRoot() {
@@ -74,12 +75,15 @@ fun WorkoutTrackerRoot() {
                 },
                 onSupersetSelected = { orderedExerciseIds ->
                     val firstExerciseId = orderedExerciseIds.firstOrNull() ?: return@ExercisePickerRoute
+                    val supersetGroupId = UUID.randomUUID().toString()
                     navController.navigate(
                         AppDestination.trackExercise(
                             exerciseId = firstExerciseId,
                             dateIso = selectedDate.toString(),
                             supersetExerciseIds = orderedExerciseIds,
-                            supersetIndex = 0
+                            supersetIndex = 0,
+                            supersetGroupId = supersetGroupId,
+                            supersetRound = 1
                         )
                     )
                 }
@@ -101,6 +105,14 @@ fun WorkoutTrackerRoot() {
                 navArgument(AppDestination.SUPERSET_INDEX_ARG) {
                     type = NavType.IntType
                     defaultValue = -1
+                },
+                navArgument(AppDestination.SUPERSET_GROUP_ARG) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(AppDestination.SUPERSET_ROUND_ARG) {
+                    type = NavType.IntType
+                    defaultValue = 1
                 }
             )
         ) { backStackEntry ->
@@ -132,22 +144,41 @@ fun WorkoutTrackerRoot() {
                 supersetExerciseIds.indexOf(exerciseId)
             }
 
+            val supersetGroupId = backStackEntry
+                .arguments
+                ?.getString(AppDestination.SUPERSET_GROUP_ARG)
+                .orEmpty()
+
+            val currentSupersetRound = backStackEntry
+                .arguments
+                ?.getInt(AppDestination.SUPERSET_ROUND_ARG)
+                ?: 1
+
             TrackExerciseRoute(
                 exerciseId = exerciseId,
                 workoutDate = selectedDate,
                 supersetExerciseIds = supersetExerciseIds,
                 supersetIndex = currentSupersetIndex,
+                supersetGroupId = supersetGroupId,
+                supersetRound = currentSupersetRound,
                 onSupersetAdvance = {
                     if (supersetExerciseIds.size >= 2 && currentSupersetIndex >= 0) {
                         val nextIndex = (currentSupersetIndex + 1) % supersetExerciseIds.size
                         val nextExerciseId = supersetExerciseIds[nextIndex]
+                        val nextRound = if (nextIndex == 0) {
+                            currentSupersetRound + 1
+                        } else {
+                            currentSupersetRound
+                        }
 
                         navController.navigate(
                             AppDestination.trackExercise(
                                 exerciseId = nextExerciseId,
                                 dateIso = selectedDate.toString(),
                                 supersetExerciseIds = supersetExerciseIds,
-                                supersetIndex = nextIndex
+                                supersetIndex = nextIndex,
+                                supersetGroupId = supersetGroupId,
+                                supersetRound = nextRound
                             )
                         ) {
                             popUpTo(backStackEntry.destination.id) {

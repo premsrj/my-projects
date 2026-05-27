@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -51,8 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.workouttracker.ui.track.formatDate
+import com.example.workouttracker.data.WorkoutSetWithExercise
 import com.example.workouttracker.ui.track.formatSetSummary
+import com.example.workouttracker.ui.track.formatTime
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -102,6 +103,7 @@ fun TodayScreen(
 ) {
     var showHistoryCalendar by rememberSaveable { mutableStateOf(false) }
     var showMenu by rememberSaveable { mutableStateOf(false) }
+    var visibleComment by rememberSaveable { mutableStateOf<String?>(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -155,7 +157,7 @@ fun TodayScreen(
             )
         }
     ) { paddingValues ->
-        if (uiState.entries.isEmpty()) {
+        if (uiState.timelineItems.isEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -184,57 +186,115 @@ fun TodayScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(uiState.entries, key = { it.exerciseId }) { entry ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onExerciseClick(entry.exerciseId) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = entry.exerciseName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "${entry.categoryName} | ${entry.type.label}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        entry.sets.forEach { set ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+            items(
+                items = uiState.timelineItems,
+                key = { item ->
+                    when (item) {
+                        is TodayTimelineItem.NonSupersetExerciseBlock -> "exercise-${item.entry.exerciseId}"
+                        is TodayTimelineItem.SupersetBlock -> "superset-${item.groupId}"
+                    }
+                }
+            ) { item ->
+                when (item) {
+                    is TodayTimelineItem.NonSupersetExerciseBlock -> {
+                        val entry = item.entry
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onExerciseClick(entry.exerciseId) },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "Set ${set.set.sequenceInExercise}: ${formatSetSummary(entry.type, set)}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    text = entry.exerciseName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
                                 )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    if (uiState.personalRecordSetIds.contains(set.set.id)) {
-                                        Icon(
-                                            imageVector = Icons.Default.EmojiEvents,
-                                            contentDescription = "Personal record",
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.tertiary
-                                        )
+                                Text(
+                                    text = "${entry.categoryName} | ${entry.type.label}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                entry.sets.forEach { set ->
+                                    TodaySetRow(
+                                        set = set,
+                                        isPr = uiState.personalRecordSetIds.contains(set.set.id),
+                                        onCommentClick = { comment ->
+                                            visibleComment = comment
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    is TodayTimelineItem.SupersetBlock -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Superset",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                                item.rounds.forEachIndexed { roundIndex, round ->
+                                    if (roundIndex > 0) {
+                                        Spacer(modifier = Modifier.height(4.dp))
                                     }
+
                                     Text(
-                                        text = formatDate(set.set.performedAtMillis),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        text = "Round ${round.round}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+
+                                    round.exercises.forEach { exercise ->
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { onExerciseClick(exercise.exerciseId) },
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = exercise.exerciseName,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = "${exercise.categoryName} | ${exercise.type.label}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+
+                                            exercise.sets.forEach { set ->
+                                                TodaySetRow(
+                                                    set = set,
+                                                    isPr = uiState.personalRecordSetIds.contains(set.set.id),
+                                                    onCommentClick = { comment ->
+                                                        visibleComment = comment
+                                                    }
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                    }
                                 }
                             }
                         }
@@ -254,6 +314,71 @@ fun TodayScreen(
             },
             onDismiss = { showHistoryCalendar = false }
         )
+    }
+
+    visibleComment?.let { commentText ->
+        AlertDialog(
+            onDismissRequest = { visibleComment = null },
+            title = { Text(text = "Comment") },
+            text = { Text(text = commentText) },
+            confirmButton = {
+                TextButton(onClick = { visibleComment = null }) {
+                    Text(text = "Close")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun TodaySetRow(
+    set: WorkoutSetWithExercise,
+    isPr: Boolean,
+    onCommentClick: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Set ${set.set.sequenceInExercise}: ${formatSetSummary(set.exerciseType, set)}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (isPr) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = "Personal record",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            val comment = set.set.comment
+            if (!comment.isNullOrBlank()) {
+                IconButton(
+                    onClick = { onCommentClick(comment) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Comment,
+                        contentDescription = "View set comment",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Text(
+                text = formatTime(set.set.performedAtMillis),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

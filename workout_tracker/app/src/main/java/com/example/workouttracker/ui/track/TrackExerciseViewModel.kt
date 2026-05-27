@@ -33,6 +33,9 @@ enum class ChartMetric(val label: String) {
 class TrackExerciseViewModel(
     private val exerciseId: Long,
     private val workoutDate: LocalDate,
+    private val supersetGroupId: String,
+    private val supersetRound: Int,
+    private val supersetIndex: Int,
     private val repository: WorkoutRepository
 ) : ViewModel() {
     private val decimalRegex = Regex("^\\d*(\\.\\d{0,2})?$")
@@ -164,7 +167,10 @@ class TrackExerciseViewModel(
                 durationSeconds = duration,
                 distance = distance,
                 comment = _commentInput.value,
-                workoutDate = workoutDate
+                workoutDate = workoutDate,
+                supersetGroupId = supersetGroupId.takeIf { it.isNotBlank() },
+                supersetRound = if (supersetGroupId.isNotBlank() && supersetIndex >= 0) supersetRound else null,
+                supersetPosition = if (supersetGroupId.isNotBlank() && supersetIndex >= 0) supersetIndex + 1 else null
             )
 
             _durationInput.value = ""
@@ -263,12 +269,21 @@ class TrackExerciseViewModel(
     }
 
     companion object {
-        fun factory(exerciseId: Long, workoutDate: LocalDate): ViewModelProvider.Factory = viewModelFactory {
+        fun factory(
+            exerciseId: Long,
+            workoutDate: LocalDate,
+            supersetGroupId: String,
+            supersetRound: Int,
+            supersetIndex: Int
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as WorkoutTrackerApp
                 TrackExerciseViewModel(
                     exerciseId = exerciseId,
                     workoutDate = workoutDate,
+                    supersetGroupId = supersetGroupId,
+                    supersetRound = supersetRound,
+                    supersetIndex = supersetIndex,
                     repository = app.appContainer.repository
                 )
             }

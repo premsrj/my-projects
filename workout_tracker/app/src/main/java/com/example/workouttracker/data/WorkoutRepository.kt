@@ -115,7 +115,10 @@ class WorkoutRepository(
         durationSeconds: Int?,
         distance: Double?,
         comment: String?,
-        workoutDate: LocalDate = LocalDate.now(zoneId)
+        workoutDate: LocalDate = LocalDate.now(zoneId),
+        supersetGroupId: String? = null,
+        supersetRound: Int? = null,
+        supersetPosition: Int? = null
     ) {
         val currentLocalTime = LocalTime.now(zoneId)
         val performedAtMillis = workoutDate
@@ -131,6 +134,9 @@ class WorkoutRepository(
                 exerciseId = exerciseId,
                 performedAtMillis = performedAtMillis,
                 sequenceInExercise = nextSequence,
+                supersetGroupId = supersetGroupId,
+                supersetRound = supersetRound,
+                supersetPosition = supersetPosition,
                 weight = weight,
                 reps = reps,
                 durationSeconds = durationSeconds,

@@ -21,11 +21,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class TodayUiState(
-    val entries: List<TodayExerciseEntry> = emptyList(),
+    val timelineItems: List<TodayTimelineItem> = emptyList(),
     val selectedDate: LocalDate = LocalDate.now(),
     val trackedDates: Set<LocalDate> = emptySet(),
     val personalRecordSetIds: Set<Long> = emptySet(),
     val isRecomputingPrs: Boolean = false
+)
+
+sealed interface TodayTimelineItem {
+    val startedAtMillis: Long
+
+    data class NonSupersetExerciseBlock(
+        val entry: TodayExerciseEntry,
+        override val startedAtMillis: Long
+    ) : TodayTimelineItem
+
+    data class SupersetBlock(
+        val groupId: String,
+        val rounds: List<TodaySupersetRoundEntry>,
+        override val startedAtMillis: Long
+    ) : TodayTimelineItem
+}
+
+data class TodaySupersetRoundEntry(
+    val round: Int,
+    val exercises: List<TodayExerciseEntry>
 )
 
 data class TodayExerciseEntry(
@@ -34,6 +54,11 @@ data class TodayExerciseEntry(
     val categoryName: String,
     val type: ExerciseType,
     val sets: List<WorkoutSetWithExercise>
+)
+
+private data class NonSupersetBlockBuilder(
+    val entry: TodayExerciseEntry,
+    val startedAtMillis: Long
 )
 
 class TodayViewModel(
@@ -51,26 +76,102 @@ class TodayViewModel(
         repository.observePersonalRecordSetIds(),
         isRecomputingPrs
     ) { allSets, trackedDates, personalRecordSetIds, recomputeInProgress ->
-            val grouped = allSets
+            val chronologicalSets = allSets.sortedBy { it.set.performedAtMillis }
+            val supersetBuckets = linkedMapOf<String, MutableList<WorkoutSetWithExercise>>()
+            val nonSupersetSets = mutableListOf<WorkoutSetWithExercise>()
+
+            chronologicalSets.forEach { set ->
+                val groupId = set.set.supersetGroupId
+                val round = set.set.supersetRound
+                if (!groupId.isNullOrBlank() && round != null) {
+                    supersetBuckets.getOrPut(groupId) { mutableListOf() }.add(set)
+                } else {
+                    nonSupersetSets += set
+                }
+            }
+
+            val nonSupersetExerciseBlocks = nonSupersetSets
                 .groupBy { it.set.exerciseId }
                 .values
-                .map { sets ->
-                    val first = sets.first()
-                    TodayExerciseEntry(
-                        exerciseId = first.set.exerciseId,
-                        exerciseName = first.exerciseName,
-                        categoryName = first.categoryName,
-                        type = first.exerciseType,
-                        sets = sets.sortedWith(
-                            compareBy<WorkoutSetWithExercise> { it.set.sequenceInExercise }
-                                .thenBy { it.set.performedAtMillis }
-                        )
+                .map { setsForExercise ->
+                    val orderedSets = setsForExercise.sortedWith(
+                        compareBy<WorkoutSetWithExercise> { it.set.sequenceInExercise }
+                            .thenBy { it.set.performedAtMillis }
+                            .thenBy { it.set.id }
+                    )
+                    val first = orderedSets.first()
+
+                    NonSupersetBlockBuilder(
+                        entry = TodayExerciseEntry(
+                            exerciseId = first.set.exerciseId,
+                            exerciseName = first.exerciseName,
+                            categoryName = first.categoryName,
+                            type = first.exerciseType,
+                            sets = orderedSets
+                        ),
+                        startedAtMillis = orderedSets.minOfOrNull { it.set.performedAtMillis } ?: 0L
                     )
                 }
-                .sortedBy { it.exerciseName.lowercase() }
+
+            val supersetBlocks = supersetBuckets.map { (groupId, groupedSets) ->
+                val rounds = groupedSets
+                    .groupBy { it.set.supersetRound ?: Int.MAX_VALUE }
+                    .entries
+                    .sortedBy { it.key }
+                    .map { (round, setsInRound) ->
+                        val exercises = setsInRound
+                            .groupBy { it.set.exerciseId }
+                            .values
+                            .map { setsForExercise ->
+                                val orderedSets = setsForExercise.sortedWith(
+                                    compareBy<WorkoutSetWithExercise> { it.set.supersetPosition ?: Int.MAX_VALUE }
+                                        .thenBy { it.set.performedAtMillis }
+                                        .thenBy { it.set.id }
+                                )
+                                val first = orderedSets.first()
+
+                                TodayExerciseEntry(
+                                    exerciseId = first.set.exerciseId,
+                                    exerciseName = first.exerciseName,
+                                    categoryName = first.categoryName,
+                                    type = first.exerciseType,
+                                    sets = orderedSets
+                                )
+                            }
+                            .sortedWith(
+                                compareBy<TodayExerciseEntry> {
+                                    it.sets.minOfOrNull { set -> set.set.supersetPosition ?: Int.MAX_VALUE }
+                                        ?: Int.MAX_VALUE
+                                }.thenBy {
+                                    it.sets.minOfOrNull { set -> set.set.performedAtMillis } ?: Long.MAX_VALUE
+                                }
+                            )
+
+                        TodaySupersetRoundEntry(
+                            round = round,
+                            exercises = exercises
+                        )
+                    }
+
+                TodayTimelineItem.SupersetBlock(
+                    groupId = groupId,
+                    rounds = rounds,
+                    startedAtMillis = groupedSets.minOfOrNull { it.set.performedAtMillis } ?: 0L
+                )
+            }
+
+            val timelineItems = (
+                supersetBlocks + nonSupersetExerciseBlocks.map { block ->
+                    TodayTimelineItem.NonSupersetExerciseBlock(
+                        entry = block.entry,
+                        startedAtMillis = block.startedAtMillis
+                    )
+                }
+                )
+                .sortedBy { it.startedAtMillis }
 
             TodayUiState(
-                entries = grouped,
+                timelineItems = timelineItems,
                 selectedDate = selectedDate,
                 trackedDates = trackedDates,
                 personalRecordSetIds = personalRecordSetIds,

@@ -80,12 +80,20 @@ fun TrackExerciseRoute(
     workoutDate: LocalDate,
     supersetExerciseIds: List<Long>,
     supersetIndex: Int,
+    supersetGroupId: String,
+    supersetRound: Int,
     onSupersetAdvance: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: TrackExerciseViewModel = viewModel(
         key = "track-$exerciseId-${workoutDate}",
-        factory = TrackExerciseViewModel.factory(exerciseId, workoutDate)
+        factory = TrackExerciseViewModel.factory(
+            exerciseId = exerciseId,
+            workoutDate = workoutDate,
+            supersetGroupId = supersetGroupId,
+            supersetRound = supersetRound,
+            supersetIndex = supersetIndex
+        )
     )
 
     val exercise by viewModel.exercise.collectAsStateWithLifecycle()
@@ -131,6 +139,7 @@ fun TrackExerciseRoute(
         workoutDate = workoutDate,
         supersetExerciseIds = supersetExerciseIds,
         supersetIndex = supersetIndex,
+        supersetRound = supersetRound,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onWeightChange = viewModel::onWeightChange,
@@ -165,6 +174,7 @@ fun TrackExerciseScreen(
     workoutDate: LocalDate,
     supersetExerciseIds: List<Long>,
     supersetIndex: Int,
+    supersetRound: Int,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onWeightChange: (String) -> Unit,
@@ -256,7 +266,7 @@ fun TrackExerciseScreen(
 
             if (supersetExerciseIds.size > 1 && supersetIndex >= 0) {
                 Text(
-                    text = "Superset: exercise ${supersetIndex + 1} of ${supersetExerciseIds.size}",
+                    text = "Superset: round $supersetRound | exercise ${supersetIndex + 1} of ${supersetExerciseIds.size}",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 2.dp),
