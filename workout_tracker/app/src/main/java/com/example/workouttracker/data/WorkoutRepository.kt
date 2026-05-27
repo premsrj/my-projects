@@ -55,6 +55,10 @@ class WorkoutRepository(
     fun observeHistoryForExercise(exerciseId: Long): Flow<List<WorkoutSetWithExercise>> =
         dao.observeSetsForExercise(exerciseId)
 
+    suspend fun getLatestWorkoutSetForExercise(exerciseId: Long): WorkoutSetEntity? {
+        return dao.getLatestWorkoutSetForExercise(exerciseId)
+    }
+
     fun observeTrackedWorkoutDates(): Flow<Set<LocalDate>> {
         return dao.observeTrackedWorkoutDates().map { dates ->
             dates.mapNotNull { dateValue ->
@@ -160,6 +164,27 @@ class WorkoutRepository(
     suspend fun clearSetComment(setId: Long) {
         val workoutSet = dao.getWorkoutSetById(setId) ?: return
         dao.updateWorkoutSet(workoutSet.copy(comment = null))
+    }
+
+    suspend fun deleteWorkoutSets(setIds: Collection<Long>) {
+        if (setIds.isEmpty()) {
+            return
+        }
+
+        val uniqueSetIds = setIds.toSet().toList()
+        val setsToDelete = dao.getWorkoutSetsByIds(uniqueSetIds)
+        if (setsToDelete.isEmpty()) {
+            return
+        }
+
+        dao.deleteWorkoutSetsByIds(uniqueSetIds)
+
+        setsToDelete
+            .map { it.exerciseId }
+            .toSet()
+            .forEach { exerciseId ->
+                recomputePersonalRecordsForExercise(exerciseId)
+            }
     }
 
     suspend fun getLastWorkout(

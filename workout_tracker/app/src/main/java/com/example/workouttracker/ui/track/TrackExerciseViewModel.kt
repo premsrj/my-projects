@@ -195,6 +195,14 @@ class TrackExerciseViewModel(
         }
     }
 
+    fun deleteSet(setId: Long) {
+        viewModelScope.launch {
+            repository.deleteWorkoutSets(listOf(setId))
+            _message.value = "Set deleted"
+            refreshLastWorkout()
+        }
+    }
+
     fun updateWeightIncrement(newIncrement: String) {
         val parsed = newIncrement.toDoubleOrNull()
         if (parsed == null || parsed <= 0.0 || parsed > 500.0) {
@@ -238,28 +246,21 @@ class TrackExerciseViewModel(
 
     private fun initializeInputsAndLastWorkout() {
         viewModelScope.launch {
-            val todaySnapshot = repository.observeSetsForExerciseOnDate(exerciseId, workoutDate).first()
-            val previousWorkout = repository.getLastWorkout(exerciseId, referenceDate = workoutDate)
-            _lastWorkout.value = previousWorkout
+            _lastWorkout.value = repository.getLastWorkout(exerciseId, referenceDate = workoutDate)
 
-            if (todaySnapshot.isEmpty()) {
-                seedPrimaryInputsFromLastWorkout(previousWorkout)
+            repository.getLatestWorkoutSetForExercise(exerciseId)?.let { latestSet ->
+                seedInputsFromLatestSet(latestSet)
             }
+
+            _commentInput.value = ""
         }
     }
 
-    private fun seedPrimaryInputsFromLastWorkout(lastWorkoutInfo: LastWorkoutInfo?) {
-        val firstSet = lastWorkoutInfo?.sets?.firstOrNull() ?: return
-        seedWeightAndReps(firstSet)
-    }
-
-    private fun seedWeightAndReps(firstSet: WorkoutSetEntity) {
-        if (_weightInput.value.isBlank()) {
-            firstSet.weight?.let { _weightInput.value = formatDecimalInput(it) }
-        }
-        if (_repsInput.value.isBlank()) {
-            firstSet.reps?.let { _repsInput.value = it.toString() }
-        }
+    private fun seedInputsFromLatestSet(latestSet: WorkoutSetEntity) {
+        _weightInput.value = latestSet.weight?.let { formatDecimalInput(it) }.orEmpty()
+        _repsInput.value = latestSet.reps?.toString().orEmpty()
+        _durationInput.value = latestSet.durationSeconds?.toString().orEmpty()
+        _distanceInput.value = latestSet.distance?.let { formatDecimalInput(it) }.orEmpty()
     }
 
     private fun formatDecimalInput(value: Double): String {

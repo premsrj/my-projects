@@ -202,6 +202,22 @@ class TodayViewModel(
         message.update { null }
     }
 
+    fun deleteSets(setIds: Collection<Long>) {
+        if (setIds.isEmpty()) {
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                repository.deleteWorkoutSets(setIds)
+            }.onSuccess {
+                message.value = "Deleted selected workout(s)"
+            }.onFailure {
+                message.value = "Failed to delete selected workout(s)"
+            }
+        }
+    }
+
     companion object {
         fun factory(selectedDate: LocalDate): ViewModelProvider.Factory = viewModelFactory {
             initializer {

@@ -1,6 +1,8 @@
 package com.example.workouttracker.ui.today
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -87,71 +91,97 @@ fun TodayRoute(
         onTrackExerciseClick = onTrackExerciseClick,
         onExerciseClick = onExerciseClick,
         onDateSelected = onDateSelected,
-        onRecomputePrsClick = viewModel::recomputePersonalRecords
+        onRecomputePrsClick = viewModel::recomputePersonalRecords,
+        onDeleteSelected = viewModel::deleteSets
     )
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 fun TodayScreen(
     uiState: TodayUiState,
     snackbarHostState: SnackbarHostState,
     onTrackExerciseClick: () -> Unit,
     onExerciseClick: (Long) -> Unit,
     onDateSelected: (LocalDate) -> Unit,
-    onRecomputePrsClick: () -> Unit
+    onRecomputePrsClick: () -> Unit,
+    onDeleteSelected: (Set<Long>) -> Unit
 ) {
     var showHistoryCalendar by rememberSaveable { mutableStateOf(false) }
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var visibleComment by rememberSaveable { mutableStateOf<String?>(null) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedItemKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val selectionMode = selectedItemKeys.isNotEmpty()
+
+    LaunchedEffect(uiState.timelineItems) {
+        val validKeys = uiState.timelineItems.map(::timelineItemKey).toSet()
+        selectedItemKeys = selectedItemKeys.intersect(validKeys)
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(text = "Today")
-                        Text(
-                            text = uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    if (selectionMode) {
+                        Text(text = "${selectedItemKeys.size} selected")
+                    } else {
+                        Column {
+                            Text(text = "Today")
+                            Text(
+                                text = uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showHistoryCalendar = true }) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = "Workout history"
-                        )
-                    }
-                    IconButton(onClick = onTrackExerciseClick) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Track exercise")
-                    }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (uiState.isRecomputingPrs) {
-                                        "Recomputing PRs..."
-                                    } else {
-                                        "Recompute PRs"
-                                    }
-                                )
-                            },
-                            enabled = !uiState.isRecomputingPrs,
-                            onClick = {
-                                showMenu = false
-                                onRecomputePrsClick()
-                            }
-                        )
+                    if (selectionMode) {
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            enabled = selectedItemKeys.isNotEmpty()
+                        ) {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete selected")
+                        }
+                        IconButton(onClick = { selectedItemKeys = emptySet() }) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel selection")
+                        }
+                    } else {
+                        IconButton(onClick = { showHistoryCalendar = true }) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = "Workout history"
+                            )
+                        }
+                        IconButton(onClick = onTrackExerciseClick) {
+                            Icon(imageVector = Icons.Default.Add, contentDescription = "Track exercise")
+                        }
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = if (uiState.isRecomputingPrs) {
+                                            "Recomputing PRs..."
+                                        } else {
+                                            "Recompute PRs"
+                                        }
+                                    )
+                                },
+                                enabled = !uiState.isRecomputingPrs,
+                                onClick = {
+                                    showMenu = false
+                                    onRecomputePrsClick()
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -188,21 +218,40 @@ fun TodayScreen(
         ) {
             items(
                 items = uiState.timelineItems,
-                key = { item ->
-                    when (item) {
-                        is TodayTimelineItem.NonSupersetExerciseBlock -> "exercise-${item.entry.exerciseId}"
-                        is TodayTimelineItem.SupersetBlock -> "superset-${item.groupId}"
-                    }
-                }
+                key = { item -> timelineItemKey(item) }
             ) { item ->
+                val itemKey = timelineItemKey(item)
+                val isSelected = selectedItemKeys.contains(itemKey)
+
                 when (item) {
                     is TodayTimelineItem.NonSupersetExerciseBlock -> {
                         val entry = item.entry
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onExerciseClick(entry.exerciseId) },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                .combinedClickable(
+                                    onClick = {
+                                        if (selectionMode) {
+                                            selectedItemKeys = if (isSelected) {
+                                                selectedItemKeys - itemKey
+                                            } else {
+                                                selectedItemKeys + itemKey
+                                            }
+                                        } else {
+                                            onExerciseClick(entry.exerciseId)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        selectedItemKeys = selectedItemKeys + itemKey
+                                    }
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
@@ -225,6 +274,7 @@ fun TodayScreen(
                                     TodaySetRow(
                                         set = set,
                                         isPr = uiState.personalRecordSetIds.contains(set.set.id),
+                                        commentEnabled = !selectionMode,
                                         onCommentClick = { comment ->
                                             visibleComment = comment
                                         }
@@ -236,8 +286,29 @@ fun TodayScreen(
 
                     is TodayTimelineItem.SupersetBlock -> {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        if (selectionMode) {
+                                            selectedItemKeys = if (isSelected) {
+                                                selectedItemKeys - itemKey
+                                            } else {
+                                                selectedItemKeys + itemKey
+                                            }
+                                        }
+                                    },
+                                    onLongClick = {
+                                        selectedItemKeys = selectedItemKeys + itemKey
+                                    }
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                }
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
@@ -268,7 +339,13 @@ fun TodayScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable { onExerciseClick(exercise.exerciseId) },
+                                                .let { modifier ->
+                                                    if (selectionMode) {
+                                                        modifier
+                                                    } else {
+                                                        modifier.clickable { onExerciseClick(exercise.exerciseId) }
+                                                    }
+                                                },
                                             verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             Text(
@@ -286,6 +363,7 @@ fun TodayScreen(
                                                 TodaySetRow(
                                                     set = set,
                                                     isPr = uiState.personalRecordSetIds.contains(set.set.id),
+                                                    commentEnabled = !selectionMode,
                                                     onCommentClick = { comment ->
                                                         visibleComment = comment
                                                     }
@@ -328,12 +406,45 @@ fun TodayScreen(
             }
         )
     }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(text = "Delete selected workouts") },
+            text = {
+                Text(text = "Delete ${selectedItemKeys.size} selected item(s)? This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val setIdsToDelete = uiState.timelineItems
+                            .asSequence()
+                            .filter { selectedItemKeys.contains(timelineItemKey(it)) }
+                            .flatMap { timelineItemSetIds(it).asSequence() }
+                            .toSet()
+
+                        onDeleteSelected(setIdsToDelete)
+                        showDeleteDialog = false
+                        selectedItemKeys = emptySet()
+                    }
+                ) {
+                    Text(text = "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun TodaySetRow(
     set: WorkoutSetWithExercise,
     isPr: Boolean,
+    commentEnabled: Boolean,
     onCommentClick: (String) -> Unit
 ) {
     Row(
@@ -362,6 +473,7 @@ private fun TodaySetRow(
             if (!comment.isNullOrBlank()) {
                 IconButton(
                     onClick = { onCommentClick(comment) },
+                    enabled = commentEnabled,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -378,6 +490,30 @@ private fun TodaySetRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+private fun timelineItemKey(item: TodayTimelineItem): String {
+    return when (item) {
+        is TodayTimelineItem.NonSupersetExerciseBlock -> "exercise-${item.entry.exerciseId}"
+        is TodayTimelineItem.SupersetBlock -> "superset-${item.groupId}"
+    }
+}
+
+private fun timelineItemSetIds(item: TodayTimelineItem): Set<Long> {
+    return when (item) {
+        is TodayTimelineItem.NonSupersetExerciseBlock -> {
+            item.entry.sets.map { it.set.id }.toSet()
+        }
+
+        is TodayTimelineItem.SupersetBlock -> {
+            item.rounds
+                .asSequence()
+                .flatMap { round -> round.exercises.asSequence() }
+                .flatMap { exercise -> exercise.sets.asSequence() }
+                .map { it.set.id }
+                .toSet()
         }
     }
 }

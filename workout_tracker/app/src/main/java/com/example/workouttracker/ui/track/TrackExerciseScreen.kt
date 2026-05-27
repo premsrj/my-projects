@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -153,6 +154,7 @@ fun TrackExerciseRoute(
         onSetChartMetric = viewModel::setChartMetric,
         onUpdateSetComment = viewModel::updateSetComment,
         onClearSetComment = viewModel::clearSetComment,
+        onDeleteSet = viewModel::deleteSet,
         onUpdateWeightIncrement = viewModel::updateWeightIncrement
     )
 }
@@ -188,6 +190,7 @@ fun TrackExerciseScreen(
     onSetChartMetric: (ChartMetric) -> Unit,
     onUpdateSetComment: (Long, String) -> Unit,
     onClearSetComment: (Long) -> Unit,
+    onDeleteSet: (Long) -> Unit,
     onUpdateWeightIncrement: (String) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -299,7 +302,8 @@ fun TrackExerciseScreen(
                         personalRecordSetIds = personalRecordSetIds,
                         onTrackSet = onTrackSet,
                         onUpdateSetComment = onUpdateSetComment,
-                        onClearSetComment = onClearSetComment
+                        onClearSetComment = onClearSetComment,
+                        onDeleteSet = onDeleteSet
                     )
 
                     1 -> HistoryPage(
@@ -370,9 +374,11 @@ private fun TrackPage(
     personalRecordSetIds: Set<Long>,
     onTrackSet: () -> Unit,
     onUpdateSetComment: (Long, String) -> Unit,
-    onClearSetComment: (Long) -> Unit
+    onClearSetComment: (Long) -> Unit,
+    onDeleteSet: (Long) -> Unit
 ) {
     var selectedSet by remember { mutableStateOf<WorkoutSetWithExercise?>(null) }
+    var setPendingDelete by remember { mutableStateOf<WorkoutSetWithExercise?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -541,6 +547,13 @@ private fun TrackPage(
                                 }
                             )
                         }
+                        IconButton(onClick = { setPendingDelete = workoutSet }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete set",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }
@@ -558,6 +571,35 @@ private fun TrackPage(
             onDelete = {
                 selectedSet?.let { onClearSetComment(it.set.id) }
                 selectedSet = null
+            }
+        )
+    }
+
+    setPendingDelete?.let { pendingSet ->
+        AlertDialog(
+            onDismissRequest = { setPendingDelete = null },
+            title = { Text(text = "Delete set") },
+            text = {
+                Text(
+                    text = "Delete Set ${pendingSet.set.sequenceInExercise}: " +
+                        formatSetSummary(exercise.type, pendingSet) +
+                        "?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteSet(pendingSet.set.id)
+                        setPendingDelete = null
+                    }
+                ) {
+                    Text(text = "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { setPendingDelete = null }) {
+                    Text(text = "Cancel")
+                }
             }
         )
     }

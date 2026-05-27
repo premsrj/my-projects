@@ -62,8 +62,14 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sets WHERE id = :setId LIMIT 1")
     suspend fun getWorkoutSetById(setId: Long): WorkoutSetEntity?
 
+    @Query("SELECT * FROM workout_sets WHERE id IN (:setIds)")
+    suspend fun getWorkoutSetsByIds(setIds: List<Long>): List<WorkoutSetEntity>
+
     @Update
     suspend fun updateWorkoutSet(set: WorkoutSetEntity)
+
+    @Query("DELETE FROM workout_sets WHERE id IN (:setIds)")
+    suspend fun deleteWorkoutSetsByIds(setIds: List<Long>)
 
     @Query(
         """
@@ -88,6 +94,17 @@ interface WorkoutDao {
         """
     )
     fun observeSetsForExercise(exerciseId: Long): Flow<List<WorkoutSetWithExercise>>
+
+    @Query(
+        """
+        SELECT *
+        FROM workout_sets
+        WHERE exerciseId = :exerciseId
+        ORDER BY performedAtMillis DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestWorkoutSetForExercise(exerciseId: Long): WorkoutSetEntity?
 
     @Query(
         """
