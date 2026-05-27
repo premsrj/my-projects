@@ -49,6 +49,10 @@ class TrackExerciseViewModel(
         repository.observeHistoryForExercise(exerciseId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val personalRecordSetIds: StateFlow<Set<Long>> =
+        repository.observePersonalRecordSetIds()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     private val _lastWorkout = MutableStateFlow<LastWorkoutInfo?>(null)
     val lastWorkout: StateFlow<LastWorkoutInfo?> = _lastWorkout.asStateFlow()
 

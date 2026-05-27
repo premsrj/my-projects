@@ -149,4 +149,52 @@ interface WorkoutDao {
         """
     )
     fun observeTrackedWorkoutDates(): Flow<List<String>>
+
+    @Query(
+        """
+        SELECT id
+        FROM workout_sets
+        WHERE isPr = 1
+        """
+    )
+    fun observePersonalRecordSetIds(): Flow<List<Long>>
+
+    @Query(
+        """
+        SELECT *
+        FROM workout_sets
+        WHERE exerciseId = :exerciseId
+        ORDER BY performedAtMillis ASC, id ASC
+        """
+    )
+    suspend fun getWorkoutSetsForExerciseChronological(exerciseId: Long): List<WorkoutSetEntity>
+
+    @Query(
+        """
+        UPDATE workout_sets
+        SET isPr = 0,
+            prOneRepMax = NULL
+        WHERE exerciseId = :exerciseId
+        """
+    )
+    suspend fun clearPersonalRecordFlagsForExercise(exerciseId: Long)
+
+    @Query(
+        """
+        UPDATE workout_sets
+        SET isPr = 1,
+            prOneRepMax = :oneRepMax
+        WHERE id = :setId
+        """
+    )
+    suspend fun markSetAsPersonalRecord(setId: Long, oneRepMax: Double)
+
+    @Query(
+        """
+        SELECT DISTINCT exerciseId
+        FROM workout_sets
+        ORDER BY exerciseId
+        """
+    )
+    suspend fun getExerciseIdsWithLoggedSets(): List<Long>
 }

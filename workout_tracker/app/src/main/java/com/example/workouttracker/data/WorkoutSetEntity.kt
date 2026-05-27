@@ -27,5 +27,7 @@ data class WorkoutSetEntity(
     val reps: Int?,
     val durationSeconds: Int?,
     val distance: Double?,
-    val comment: String?
+    val comment: String?,
+    val isPr: Boolean = false,
+    val prOneRepMax: Double? = null
 )

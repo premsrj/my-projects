@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
@@ -94,6 +95,7 @@ fun TrackExerciseRoute(
     val distanceInput by viewModel.distanceInput.collectAsStateWithLifecycle()
     val commentInput by viewModel.commentInput.collectAsStateWithLifecycle()
     val chartMetric by viewModel.chartMetric.collectAsStateWithLifecycle()
+    val personalRecordSetIds by viewModel.personalRecordSetIds.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -115,6 +117,7 @@ fun TrackExerciseRoute(
         distanceInput = distanceInput,
         commentInput = commentInput,
         chartMetric = chartMetric,
+        personalRecordSetIds = personalRecordSetIds,
         workoutDate = workoutDate,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
@@ -146,6 +149,7 @@ fun TrackExerciseScreen(
     distanceInput: String,
     commentInput: String,
     chartMetric: ChartMetric,
+    personalRecordSetIds: Set<Long>,
     workoutDate: LocalDate,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
@@ -257,12 +261,16 @@ fun TrackExerciseScreen(
                         onCommentChange = onCommentChange,
                         onAdjustWeight = onAdjustWeight,
                         onAdjustReps = onAdjustReps,
+                        personalRecordSetIds = personalRecordSetIds,
                         onTrackSet = onTrackSet,
                         onUpdateSetComment = onUpdateSetComment,
                         onClearSetComment = onClearSetComment
                     )
 
-                    1 -> HistoryPage(historySets = historySets)
+                    1 -> HistoryPage(
+                        historySets = historySets,
+                        personalRecordSetIds = personalRecordSetIds
+                    )
 
                     else -> StatsPage(
                         historySets = historySets,
@@ -324,6 +332,7 @@ private fun TrackPage(
     onCommentChange: (String) -> Unit,
     onAdjustWeight: (Boolean) -> Unit,
     onAdjustReps: (Boolean) -> Unit,
+    personalRecordSetIds: Set<Long>,
     onTrackSet: () -> Unit,
     onUpdateSetComment: (Long, String) -> Unit,
     onClearSetComment: (Long) -> Unit
@@ -477,17 +486,26 @@ private fun TrackPage(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = { selectedSet = workoutSet }) {
-                        val hasComment = !workoutSet.set.comment.isNullOrBlank()
-                        Icon(
-                            imageVector = if (hasComment) Icons.Default.Comment else Icons.Default.ChatBubbleOutline,
-                            contentDescription = "Comment",
-                            tint = if (hasComment) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (personalRecordSetIds.contains(workoutSet.set.id)) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = "Personal record",
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                        IconButton(onClick = { selectedSet = workoutSet }) {
+                            val hasComment = !workoutSet.set.comment.isNullOrBlank()
+                            Icon(
+                                imageVector = if (hasComment) Icons.Default.Comment else Icons.Default.ChatBubbleOutline,
+                                contentDescription = "Comment",
+                                tint = if (hasComment) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -591,7 +609,10 @@ private fun CommentDialog(
 }
 
 @Composable
-private fun HistoryPage(historySets: List<WorkoutSetWithExercise>) {
+private fun HistoryPage(
+    historySets: List<WorkoutSetWithExercise>,
+    personalRecordSetIds: Set<Long>
+) {
     val grouped = historySets.groupBy { formatDate(it.set.performedAtMillis) }
 
     LazyColumn(
@@ -637,12 +658,24 @@ private fun HistoryPage(historySets: List<WorkoutSetWithExercise>) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (!workoutSet.set.comment.isNullOrBlank()) {
-                            Icon(
-                                imageVector = Icons.Default.Comment,
-                                contentDescription = "Has comment",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (personalRecordSetIds.contains(workoutSet.set.id)) {
+                                Icon(
+                                    imageVector = Icons.Default.EmojiEvents,
+                                    contentDescription = "Personal record",
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                            if (!workoutSet.set.comment.isNullOrBlank()) {
+                                Icon(
+                                    imageVector = Icons.Default.Comment,
+                                    contentDescription = "Has comment",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }

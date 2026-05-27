@@ -1,5 +1,6 @@
 package com.example.workouttracker.data
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -60,6 +61,10 @@ class WorkoutRepository(
                 runCatching { LocalDate.parse(dateValue) }.getOrNull()
             }.toSet()
         }
+    }
+
+    fun observePersonalRecordSetIds(): Flow<Set<Long>> {
+        return dao.observePersonalRecordSetIds().map { it.toSet() }
     }
 
     suspend fun ensureDefaultCategories() {
@@ -133,6 +138,8 @@ class WorkoutRepository(
                 comment = comment?.trim()?.takeIf { it.isNotEmpty() }
             )
         )
+
+        recomputePersonalRecordsForExercise(exerciseId)
     }
 
     suspend fun updateSetComment(setId: Long, comment: String) {
@@ -185,6 +192,66 @@ class WorkoutRepository(
         val start = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli() - 1
         return start to end
+    }
+
+    suspend fun recomputeAllPersonalRecords() {
+        val exerciseIds = dao.getExerciseIdsWithLoggedSets()
+        exerciseIds.forEach { exerciseId ->
+            recomputePersonalRecordsForExercise(exerciseId)
+        }
+    }
+
+    private suspend fun recomputePersonalRecordsForExercise(exerciseId: Long) {
+        val exercise = dao.getExercise(exerciseId) ?: return
+
+        dao.clearPersonalRecordFlagsForExercise(exerciseId)
+
+        if (!exercise.type.usesWeight || !exercise.type.usesReps) {
+            return
+        }
+
+        val sets = dao.getWorkoutSetsForExerciseChronological(exerciseId)
+            .filter { it.weight != null && it.reps != null }
+
+        if (sets.isEmpty()) {
+            return
+        }
+
+        val setsByDate = sets.groupBy { set ->
+            Instant.ofEpochMilli(set.performedAtMillis)
+                .atZone(zoneId)
+                .toLocalDate()
+        }
+
+        var bestSoFar = Double.NEGATIVE_INFINITY
+
+        setsByDate.keys.sorted().forEach { date ->
+            val dayBest = setsByDate[date]
+                .orEmpty()
+                .map { set ->
+                    val oneRepMax = calculateOneRepMax(
+                        weight = set.weight ?: 0.0,
+                        reps = set.reps ?: 0
+                    )
+                    set to oneRepMax
+                }
+                .sortedWith(
+                    compareByDescending<Pair<WorkoutSetEntity, Double>> { it.second }
+                        .thenBy { it.first.performedAtMillis }
+                        .thenBy { it.first.id }
+                )
+                .firstOrNull()
+                ?: return@forEach
+
+            if (dayBest.second > bestSoFar) {
+                bestSoFar = dayBest.second
+                dao.markSetAsPersonalRecord(dayBest.first.id, dayBest.second)
+            }
+        }
+    }
+
+    private fun calculateOneRepMax(weight: Double, reps: Int): Double {
+        return weight * (1.0 + reps / 30.0)
     }
 }
 

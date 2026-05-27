@@ -19,20 +19,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,12 +71,22 @@ fun TodayRoute(
         factory = TodayViewModel.factory(selectedDate)
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(snackbarMessage) {
+        val message = snackbarMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearMessage()
+    }
 
     TodayScreen(
         uiState = uiState,
+        snackbarHostState = snackbarHostState,
         onTrackExerciseClick = onTrackExerciseClick,
         onExerciseClick = onExerciseClick,
-        onDateSelected = onDateSelected
+        onDateSelected = onDateSelected,
+        onRecomputePrsClick = viewModel::recomputePersonalRecords
     )
 }
 
@@ -77,13 +94,17 @@ fun TodayRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 fun TodayScreen(
     uiState: TodayUiState,
+    snackbarHostState: SnackbarHostState,
     onTrackExerciseClick: () -> Unit,
     onExerciseClick: (Long) -> Unit,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate) -> Unit,
+    onRecomputePrsClick: () -> Unit
 ) {
     var showHistoryCalendar by rememberSaveable { mutableStateOf(false) }
+    var showMenu by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -105,6 +126,30 @@ fun TodayScreen(
                     }
                     IconButton(onClick = onTrackExerciseClick) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Track exercise")
+                    }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (uiState.isRecomputingPrs) {
+                                        "Recomputing PRs..."
+                                    } else {
+                                        "Recompute PRs"
+                                    }
+                                )
+                            },
+                            enabled = !uiState.isRecomputingPrs,
+                            onClick = {
+                                showMenu = false
+                                onRecomputePrsClick()
+                            }
+                        )
                     }
                 }
             )
@@ -173,11 +218,24 @@ fun TodayScreen(
                                     text = "Set ${set.set.sequenceInExercise}: ${formatSetSummary(entry.type, set)}",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
-                                Text(
-                                    text = formatDate(set.set.performedAtMillis),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (uiState.personalRecordSetIds.contains(set.set.id)) {
+                                        Icon(
+                                            imageVector = Icons.Default.EmojiEvents,
+                                            contentDescription = "Personal record",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                    Text(
+                                        text = formatDate(set.set.performedAtMillis),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
