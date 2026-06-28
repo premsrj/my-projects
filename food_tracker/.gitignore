@@ -1,0 +1,22 @@
+# Gradle and build output
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# Local SDK path
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Native build intermediates
+.externalNativeBuild/
+.cxx/
+
+# Misc
+captures/
+*.apk
+*.ap_
+*.aab
